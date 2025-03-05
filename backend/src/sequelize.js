@@ -7,16 +7,22 @@ const CommentModel = require("./models/Comment");
 const SubscriptionModel = require("./models/Subscription");
 const ViewModel = require("./models/View");
 
-pg.defaults.ssl = true;
+// Check if SSL is required (useful for local vs. production environments)
+const isSSL = process.env.DATABASE_URL.includes("sslmode=require");
+
 const sequelize = new Sequelize(process.env.DATABASE_URL, {
   logging: false,
-  dialectOptions: {
-    ssl: {
-      require: true,
-      rejectUnauthorized: false,
-    },
-  },
+  dialect: "postgres",
+  dialectOptions: isSSL
+    ? {
+        ssl: {
+          require: true,
+          rejectUnauthorized: false,
+        },
+      }
+    : {},
 });
+
 (async () => await sequelize.sync({ alter: true }))();
 
 const User = UserModel(sequelize, DataTypes);
@@ -26,29 +32,14 @@ const Comment = CommentModel(sequelize, DataTypes);
 const Subscription = SubscriptionModel(sequelize, DataTypes);
 const View = ViewModel(sequelize, DataTypes);
 
-// video - user association
+// Associations
 Video.belongsTo(User, { foreignKey: "userId" });
-
-// likes association
 User.belongsToMany(Video, { through: VideoLike, foreignKey: "userId" });
 Video.belongsToMany(User, { through: VideoLike, foreignKey: "videoId" });
-
-// comments association
-User.hasMany(Comment, {
-  foreignKey: "userId",
-});
+User.hasMany(Comment, { foreignKey: "userId" });
 Comment.belongsTo(User, { foreignKey: "userId" });
-
-Video.hasMany(Comment, {
-  foreignKey: "videoId",
-});
-
-// subscription association
-User.hasMany(Subscription, {
-  foreignKey: "subscribeTo",
-});
-
-// views association
+Video.hasMany(Comment, { foreignKey: "videoId" });
+User.hasMany(Subscription, { foreignKey: "subscribeTo" });
 User.belongsToMany(Video, { through: View, foreignKey: "userId" });
 Video.belongsToMany(User, { through: View, foreignKey: "videoId" });
 

@@ -1,0 +1,55 @@
+version: '3.8'
+
+networks:
+  youtube:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+
+services:
+  frontend:
+    image: janisadhi/frontend-youtube:v0.1
+    container_name: frontend
+    ports:
+      - "3000:80"
+    networks:
+      - youtube
+    environment:
+      - REACT_APP_BACKEND_URL=http://localhost:5000/api/v1
+      - REACT_APP_CLOUDINARY_ENDPOINT=https://api.cloudinary.com/v1_1/janisadhi
+
+  backend:
+    image: janisadhi/backend-youtube:v0.1
+    container_name: backend
+    ports:
+      - "5000:5000"
+    networks:
+      - youtube
+    environment:
+      - JWT_SECRET=2qx+vV+mjTwhm+hzCVsk86eUW1DLOSjLI9rVR2zwc64=
+      - JWT_EXPIRE=30d 
+      - DATABASE_URL=postgresql://postgres:janis123@postgres:5432/youtubeclone
+    depends_on: 
+      database:
+        condition: service_healthy
+
+
+  database:
+    image: postgres:16
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    networks:
+      - youtube
+    environment:
+      - POSTGRES_PASSWORD=janis123
+      - POSTGRES_DB=youtubeclone
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      retries: 5
+      start_period: 10s
